@@ -1,0 +1,57 @@
+
+
+.car-elem {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: flex-start;
+    margin: 20px 0 40px;
+}
+
+.car-container {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.name-car {
+    margin-left: 10px;
+}
+.color-car {
+    position: relative;
+    z-index: 1000;
+}
+
+.color-car svg {
+    width: 100%;
+    height: 50px;
+}
+
+.car-line {
+    width: 99%;
+    height: 1px;
+    background-color: black;
+}
+
+.finish svg {
+    position: absolute;
+    height: 90px;
+    bottom: 0px;
+    right: 100px;
+}
+
+.wincar {
+    max-width: 200px;
+    color: red;
+    font-size: 20px;
+    position: fixed;
+    top: 5vh;
+    left: 40vw;
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+}
+
