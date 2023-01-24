@@ -2,7 +2,7 @@ import { Component } from "../module/component";
 import {IConfigComponent } from '../types/types';
 import { appCars } from './cars'
 import { appWin } from './winners'
-
+const baseUrl = 'http://127.0.0.1:3000';
 class AppHeader extends Component {
     constructor(config: IConfigComponent){
         super(config)
@@ -34,3 +34,4 @@ export const appHeader: AppHeader = new AppHeader(
         `
     }
 )
+

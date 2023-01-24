@@ -2,11 +2,15 @@ import { Component } from "../module/component";
 import {IConfigComponent } from '../types/types';
 import { paramMove } from '../types/types';
 import { carNames } from './carsList';
+import { winCar } from '../types/types';
 
+
+let win: string | null | undefined = null;
 localStorage.setItem('pageCar', '1');
-localStorage.setItem('winCar', 'false');
 let carPageLocal = Number(localStorage.getItem('pageCar'));
 const baseUrl = 'http://127.0.0.1:3000';
+
+let moving: Array<NodeJS.Timer> = [];
 
 
 class AppCars extends Component {
@@ -28,22 +32,129 @@ class AppCars extends Component {
             'click .next-car': 'getNextCars',
             'click .prev-car': 'getPrevCars',
             'click .generate': 'generateNewCar',
+            'click .made-create': 'madeCar',
+            'click .made-change': 'changeCar',
         }
+    }
+
+    async changeCar(){
+            const inputText = document.querySelector('.change-text') as HTMLInputElement;
+            inputText.disabled = true;
+            const name = inputText.value;
+            const id = inputText.dataset.id
+            
+            const inputColor = document.querySelector('.change-color') as HTMLInputElement;
+            inputColor.disabled = true;
+            const color = inputColor.value;
+
+            const changeBtn = document.querySelector('.made-change') as HTMLButtonElement;
+            changeBtn.disabled = true;
+
+            inputText.value = '';
+            inputColor.value = '';
+
+            const car = {
+                "name": name,
+                "model": '',
+                "color": color,
+            }
+            await fetch(`${baseUrl}/garage/${id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(car),
+              });
+    
+              this.getCars();
+              console.log(car);
+    }
+
+    async madeCar(){
+        const inputText = document.querySelector('.create-text') as HTMLInputElement;
+        const inputColor = document.querySelector('.create-color') as HTMLInputElement;
+        const textValue = inputText.value;
+        const colorValue = inputColor.value;
+        const car = {
+            "name": textValue || 'no name',
+            "model": '',
+            "color": colorValue,
+        }
+        await fetch(`${baseUrl}/garage`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(car)
+          });
+
+          this.getCars();
+
+          inputText.value = '';
+          inputColor.value = '';
     }
 
     async startCar(event: Event) {
         const target = event.target as HTMLElement;
+       
         if (target.className === 'btn-a') {
+            const btna = target as HTMLButtonElement;
+            const btnb = target.nextSibling as HTMLButtonElement;
+            btna.disabled = true;
+            btnb.disabled = false;
             const id: string | undefined = target.dataset.id;
             const response = await fetch(`${baseUrl}/engine?id=${id}&status=started`, {method: 'PATCH'});
             const distance = await response.json();
             this.moveElem(distance, id);
         }
         if (target.className === 'btn-b') {
+            const btnb = target as HTMLButtonElement;
+            const btna = target.previousSibling as HTMLButtonElement;
+            btna.disabled = false;
+            btnb.disabled = true;
+
             const id: string | undefined = target.dataset.id;
             const response = await fetch(`${baseUrl}/engine?id=${id}&status=stopped`, {method: 'PATCH'});
             const stop = await response.json();
             this.stopElem(id);
+
+        }
+        if (target.className === 'select') {
+            const id: string | undefined = target.dataset.id;
+            const response = await fetch(`${baseUrl}/garage?id=${id}`);
+            const dataCar = await response.json();
+
+            const inputText = document.querySelector('.change-text') as HTMLInputElement;
+            inputText.disabled = false;
+            inputText.value = `${dataCar[0]["name"]} ${dataCar[0]["model"] || ' '}`;
+            inputText.dataset.id = id;
+
+            
+            const inputColor = document.querySelector('.change-color') as HTMLInputElement;
+            inputColor.disabled = false;
+            inputColor.value = dataCar[0]["color"];
+
+            const changeBtn = document.querySelector('.made-change') as HTMLButtonElement;
+            changeBtn.disabled = false;
+
+        }
+        if (target.className === 'remove') {
+            const id: string | undefined = target.dataset.id;
+            const response = await fetch(`${baseUrl}/garage/${id}`, {
+                method: 'DELETE'
+              });
+              this.getCars();
+              const inputText = document.querySelector('.change-text') as HTMLInputElement;
+              inputText.disabled = true;
+              
+              const inputColor = document.querySelector('.change-color') as HTMLInputElement;
+              inputColor.disabled = true;
+  
+              const changeBtn = document.querySelector('.made-change') as HTMLButtonElement;
+              changeBtn.disabled = true;
+  
+              inputText.value = '';
+              inputColor.value = '';
         }
     }
 
@@ -63,26 +174,53 @@ class AppCars extends Component {
 
                 if(curX > endX){
                     clearInterval(intervalID);
+                    if(!(win)){
+                        win = id;
+                        winCar(id);
+                        setTimeout(()=> {
+                            const p = document.querySelector('.wincar') as HTMLParagraphElement;
+                            p.innerHTML = '';
+                            const body = document.querySelector('body') as HTMLBodyElement;
+                            body.style.background = ``;
+                        }, 3000);
+                    }
+                    
                 }
 
                 svg.style.transform =  `translateX(${curX}px)`
             }, a/200);
-            localStorage.setItem('winCar', 'false');
+            moving.push(intervalID);           
         }
         animataPos();
+        console.log(moving);
     }
 
+
+
     stopElem(id: string | undefined){
+        win = null;
         const svg = document.querySelector(`[data-car$="${id}"]`) as HTMLElement;
         svg.style.transform =  `translateX(0px)`;
+        moving.forEach((elem) => clearInterval(elem));
+        moving = [];
     }
 
     startAll(){
+        const reset = document.querySelector('.reset') as HTMLButtonElement;
+        const race = document.querySelector('.race') as HTMLButtonElement;
+        reset.disabled = false;
+        race.disabled = true;
+
         const allCars = (document.querySelectorAll('.btn-a')) as NodeListOf<HTMLElement>;
         allCars.forEach((elem) => elem.click());
     }
 
     stopAll(){
+        const reset = document.querySelector('.reset') as HTMLButtonElement;
+        const race = document.querySelector('.race') as HTMLButtonElement;
+        reset.disabled = true;
+        race.disabled = false;
+
         const allCars = (document.querySelectorAll('.btn-b')) as NodeListOf<HTMLElement>;
         allCars.forEach((elem) => elem.click());
     }
@@ -116,6 +254,9 @@ class AppCars extends Component {
             const colorCar = document.createElement('div');
             const carLine = document.createElement('div');
             const finish = document.createElement('span');
+            const ghangeBtns = document.createElement('div');
+            const select = document.createElement('button');
+            const remove = document.createElement('button');
 
             carElem.classList.add('car-elem');
             carContainer.classList.add('car-container');
@@ -125,10 +266,17 @@ class AppCars extends Component {
             colorCar.classList.add('color-car');
             carLine.classList.add('car-line');
             finish.classList.add('finish');
+            select.classList.add('select');
+            remove.classList.add('remove');
+            btnB.disabled = true;
+
+
 
 
             btnA.innerHTML = 'A';
             btnB.innerHTML = 'B';
+            select.innerHTML = 'SELECT';
+            remove.innerHTML = 'REMOVE';
             nameCar.innerHTML = `${dataCarList[i]["name"]} ${dataCarList[i]["model"] || ''}`;
             colorCar.innerHTML = `
             
@@ -257,6 +405,8 @@ class AppCars extends Component {
 
             btnA.dataset.id = dataCarList[i]["id"];
             btnB.dataset.id = dataCarList[i]["id"];
+            select.dataset.id = dataCarList[i]["id"];
+            remove.dataset.id = dataCarList[i]["id"];
             colorCar.dataset.car = dataCarList[i]["id"];
 
             carList.appendChild(carElem);
@@ -267,11 +417,16 @@ class AppCars extends Component {
             carElem.appendChild(colorCar);
             carElem.appendChild(carLine);
             carElem.appendChild(finish);
+            carElem.appendChild(ghangeBtns);
+            ghangeBtns.appendChild(select);
+            ghangeBtns.appendChild(remove);
+
         }
     }
 
 
     async getNextCars(){
+        win = null;
         if(carPageLocal >= 1) {
             carPageLocal++;
             const response = await fetch(`${baseUrl}/garage`);
@@ -299,6 +454,10 @@ class AppCars extends Component {
             const colorCar = document.createElement('div');
             const carLine = document.createElement('div');
             const finish = document.createElement('span');
+            const ghangeBtns = document.createElement('div');
+            const select = document.createElement('button');
+            const remove = document.createElement('button');
+            btnB.disabled = true;
 
             carElem.classList.add('car-elem');
             carContainer.classList.add('car-container');
@@ -308,11 +467,15 @@ class AppCars extends Component {
             colorCar.classList.add('color-car');
             carLine.classList.add('car-line');
             finish.classList.add('finish');
+            select.classList.add('select');
+            remove.classList.add('remove');
 
 
             btnA.innerHTML = 'A';
             btnB.innerHTML = 'B';
-            nameCar.innerHTML = `${dataCarList[i]["name"]}`;
+            select.innerHTML = 'SELECT';
+            remove.innerHTML = 'REMOVE';
+            nameCar.innerHTML = `${dataCarList[i]["name"]} ${dataCarList[i]["model"] || ''}`;
             colorCar.innerHTML = `
             
             <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
@@ -440,6 +603,8 @@ class AppCars extends Component {
 
             btnA.dataset.id = dataCarList[i]["id"];
             btnB.dataset.id = dataCarList[i]["id"];
+            select.dataset.id = dataCarList[i]["id"];
+            remove.dataset.id = dataCarList[i]["id"];
             colorCar.dataset.car = dataCarList[i]["id"];
 
             carList.appendChild(carElem);
@@ -450,12 +615,21 @@ class AppCars extends Component {
             carElem.appendChild(colorCar);
             carElem.appendChild(carLine);
             carElem.appendChild(finish);
+            carElem.appendChild(ghangeBtns);
+            ghangeBtns.appendChild(select);
+            ghangeBtns.appendChild(remove);
         }
         }
+
+        const reset = document.querySelector('.reset') as HTMLButtonElement;
+        const race = document.querySelector('.race') as HTMLButtonElement;
+        reset.disabled = true;
+        race.disabled = false;
 
     }
 
     async getPrevCars(){
+        win = null;
         if(carPageLocal > 1) {
             --carPageLocal;
             const response = await fetch(`${baseUrl}/garage`);
@@ -483,6 +657,9 @@ class AppCars extends Component {
             const colorCar = document.createElement('div');
             const carLine = document.createElement('div');
             const finish = document.createElement('span');
+            const ghangeBtns = document.createElement('div');
+            const select = document.createElement('button');
+            const remove = document.createElement('button');
 
             carElem.classList.add('car-elem');
             carContainer.classList.add('car-container');
@@ -492,11 +669,16 @@ class AppCars extends Component {
             colorCar.classList.add('color-car');
             carLine.classList.add('car-line');
             finish.classList.add('finish');
+            select.classList.add('select');
+            remove.classList.add('remove');
+            btnB.disabled = true;
 
 
             btnA.innerHTML = 'A';
             btnB.innerHTML = 'B';
-            nameCar.innerHTML = `${dataCarList[i]["name"]}`;
+            select.innerHTML = 'SELECT';
+            remove.innerHTML = 'REMOVE';
+            nameCar.innerHTML = `${dataCarList[i]["name"]} ${dataCarList[i]["model"] || ''}`;
             colorCar.innerHTML = `
             
             <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
@@ -624,6 +806,8 @@ class AppCars extends Component {
 
             btnA.dataset.id = dataCarList[i]["id"];
             btnB.dataset.id = dataCarList[i]["id"];
+            select.dataset.id = dataCarList[i]["id"];
+            remove.dataset.id = dataCarList[i]["id"];
             colorCar.dataset.car = dataCarList[i]["id"];
 
             carList.appendChild(carElem);
@@ -634,7 +818,10 @@ class AppCars extends Component {
             carElem.appendChild(colorCar);
             carElem.appendChild(carLine);
             carElem.appendChild(finish);
-        }
+            carElem.appendChild(ghangeBtns);
+            ghangeBtns.appendChild(select);
+            ghangeBtns.appendChild(remove);
+            }
         }
 
     }
@@ -679,8 +866,14 @@ class AppCars extends Component {
     
               this.getCars()
         }
+        const reset = document.querySelector('.reset') as HTMLButtonElement;
+        const race = document.querySelector('.race') as HTMLButtonElement;
+        reset.disabled = true;
+        race.disabled = false;
         
    }
+
+
 
 
 }
@@ -689,15 +882,25 @@ export const appCars: AppCars = new AppCars(
     {
         selector: 'app-content',
         template: `
+        <div class="madeCar">
+            <input class="create-text" type="text">
+            <input class="create-color" type="color">
+            <button class="made-create">CREATE</button>
+        </div>
+        <div class="changedCar">
+            <input class="change-text" type="text" disabled>
+            <input class="change-color" type="color" disabled>
+            <button class="made-change" disabled>CHANGE</button>
+        </div>
         <button class="race">RACE</button>
-        <button class="reset">RESET</button>
+        <button class="reset" disabled>RESET</button>
         <button class="generate">GENERATE NEW CAR</button>
         <h1 class="car-header"></h1>
         <h2 class="car-page"></h2>
         <div class="car-list"></div>
         <button class="prev-car">Prev</button>
         <button class="next-car">Next</button>
-        <p class="wincar">Дайте пожалуйста время до четверга. Спасибо</p>
+        <p class="wincar"></p>
         `
     }
 )

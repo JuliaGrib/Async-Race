@@ -12,4 +12,5 @@ mainTag.appendChild(contentTag);
 appHeader.render();
 appCars.render();
 
+console.log('Нет обработки на ошибки, а так же записи в Победители');
 
